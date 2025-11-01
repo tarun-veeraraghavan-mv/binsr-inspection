@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF Coordinate Finder</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #the-canvas { border: 1px solid black; cursor: crosshair; }
+        #coordinates { margin-top: 10px; font-size: 1.2em; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>PDF Coordinate Finder</h1>
+    <p>Click on the PDF to find the coordinates for pdf-lib.</p>
+    <canvas id="the-canvas"></canvas>
+    <div id="coordinates">x: 0, y: 0</div>
+
+    <script src="https://mozilla.github.io/pdf.js/build/pdf.mjs" type="module"></script>
+
+    <script type="module">
+        try {
+            const url = '/resources/TREC_Template_Blank.pdf';
+            console.log('Script started. PDF URL:', url);
+
+            const { pdfjsLib } = globalThis;
+            if (pdfjsLib) {
+                console.log('pdf.js library found.');
+
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
+                console.log('Worker source set.');
+
+                const canvas = document.getElementById('the-canvas');
+                const ctx = canvas.getContext('2d');
+                const coordinatesDiv = document.getElementById('coordinates');
+                console.log('Canvas and coordinates div found.');
+
+                pdfjsLib.getDocument(url).promise.then(function(pdf) {
+                    console.log('PDF loaded successfully.');
+                    return pdf.getPage(1);
+                }).then(function(page) {
+                    console.log('Page 1 loaded successfully.');
+
+                    const viewport = page.getViewport({ scale: 1.0 });
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    console.log('Canvas resized to:', canvas.width, 'x', canvas.height);
+
+                    const renderContext = {
+                        canvasContext: ctx,
+                        viewport: viewport
+                    };
+                    const renderTask = page.render(renderContext);
+                    renderTask.promise.then(() => {
+                        console.log('Page rendered successfully.');
+                    });
+
+                    canvas.addEventListener('click', function(event) {
+                        console.log('Canvas clicked.');
+                        const rect = canvas.getBoundingClientRect();
+                        const x = event.clientX - rect.left;
+                        const y = event.clientY - rect.top;
+
+                        // Convert to PDF coordinates (origin at bottom-left)
+                        const pdfY = canvas.height - y;
+
+                        const coordText = `x: ${x.toFixed(2)}, y: ${pdfY.toFixed(2)}`;
+                        console.log('Calculated coordinates:', coordText);
+                        coordinatesDiv.textContent = coordText;
+                    });
+                }).catch(function(error) {
+                    console.error('Error loading PDF:', error);
+                    coordinatesDiv.textContent = 'Error loading PDF. Check console for details.';
+                });
+            } else {
+                console.error('pdf.js library not loaded.');
+            }
+        } catch (e) {
+            console.error('An unexpected error occurred in the script:', e);
+        }
+    </script>
+</body>
+</html>
